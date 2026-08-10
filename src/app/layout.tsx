@@ -1,0 +1,35 @@
+import type { Metadata } from "next";
+import { Inter, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/lib/auth-context";
+import { Toaster } from "@/components/ui/sonner";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
+});
+
+export const metadata: Metadata = {
+  title: "LensLoop — Rent Camera & Event Gear Instantly",
+  description:
+    "Rent professional cameras, lenses, lighting and event gear from trusted local providers. Book by the day, pick up, shoot, return.",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} ${plexMono.variable} font-sans antialiased`}>
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+            <Toaster position="top-right" />
+          </AuthProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
