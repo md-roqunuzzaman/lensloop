@@ -103,3 +103,19 @@ export interface ApiError {
   message: string;
   errors?: Record<string, string[]>;
 }
+export interface BlogPost {
+  id: string;
+  authorId: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  coverImage?: string | null;
+  category: string;
+  isPublished: boolean;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author?: { id: string; name: string; avatar?: string | null };
+  related?: BlogPost[];
+}

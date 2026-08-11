@@ -1,20 +1,31 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { jwtDecode } from "jwt-decode";
-import { api, setToken, clearToken } from "@/lib/api";
-import type { LoginInput, RegisterInput } from "@/lib/validations";
-import type { Role, User } from "@/types";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
-interface JwtPayload {
-  sub: string;
-  role: Role;
-  exp: number;
-}
+import { api } from "@/lib/api";
+import type { LoginInput, RegisterInput } from "@/lib/validations";
+import type { User } from "@/types";
+import { toast } from "sonner";
 
 interface AuthResponse {
-  accessToken: string;
-  user: User;
+  success: boolean;
+  message: string;
+  data: {
+    user: User;
+    accessToken?: string;
+  };
+}
+
+interface MeResponse {
+  success: boolean;
+  message: string;
+  data: User;
 }
 
 interface AuthContextValue {
@@ -22,7 +33,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (input: LoginInput) => Promise<User>;
   register: (input: RegisterInput) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -32,61 +43,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function hydrate() {
-    const token = typeof window !== "undefined" ? localStorage.getItem("lensloop_token") : null;
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     try {
-      const decoded = jwtDecode<JwtPayload>(token);
-      if (decoded.exp * 1000 < Date.now()) {
-        clearToken();
-        setLoading(false);
-        return;
+      const response = await api.get<MeResponse>("/auth/me");
+
+      // Backend response:
+      // { success, message, data: user }
+      setUser(response.data);
+    } catch (error) {
+      // 401 এখানে normal হতে পারে যখন user logged out.
+      setUser(null);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("Auth hydration failed:", error);
       }
-      const me = await api.get<User>("/auth/me");
-      setUser(me);
-    } catch {
-      clearToken();
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    // Standard auth-hydration-on-mount pattern: decode any stored JWT and fetch
-    // the current user once when the provider mounts.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     hydrate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function login(input: LoginInput): Promise<User> {
-    const res = await api.post<AuthResponse>("/auth/login", input, {
+    const response = await api.post<AuthResponse>("/auth/login", input, {
       auth: false,
     });
-    setToken(res.accessToken);
-    setUser(res.user);
-    return res.user;
+
+    // Backend response:
+    // {
+    //   success: true,
+    //   message: "Login successful",
+    //   data: {
+    //     user: {...}
+    //   }
+    // }
+
+    const loggedInUser = response.data.user;
+
+    setUser(loggedInUser);
+
+    return loggedInUser;
   }
 
   async function register(input: RegisterInput) {
     const { confirmPassword, ...rest } = input;
+
     void confirmPassword;
-    const res = await api.post<AuthResponse>("/auth/register", rest, {
+
+    const response = await api.post<AuthResponse>("/auth/register", rest, {
       auth: false,
     });
-    setToken(res.accessToken);
-    setUser(res.user);
+
+    setUser(response.data.user);
   }
 
-  function logout() {
-    clearToken();
-    setUser(null);
-  }
+  async function logout() {
+    try {
+      await api.post("/auth/logout");
 
+      setUser(null);
+
+      toast.success("Logged out successfully");
+    } catch (error) {
+      console.error("Logout failed:", error);
+
+      // Even if API logout fails, clear local user state
+      setUser(null);
+
+      toast.error("Logout failed. Please try again.");
+    }
+  }
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -94,6 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+
   return ctx;
 }

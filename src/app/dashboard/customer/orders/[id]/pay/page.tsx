@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { notFound } from "next/navigation";
 
-import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
+import { CreditCard, Loader2, ShieldCheck, Package } from "lucide-react";
 
 import {
   Card,
@@ -15,36 +15,201 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { api, ApiRequestError } from "@/lib/api";
-
 import { toast } from "sonner";
 
 import type { RentalStatus } from "@/types";
 
+// =====================================================
+// TYPES
+// =====================================================
+
+type GearItem = {
+  id: string;
+  name: string;
+  brand?: string;
+  images?: string[];
+};
+
+type RentalItem = {
+  id: string;
+  gearItemId: string;
+  quantity: number;
+  pricePerDay: string | number;
+  subtotal: string | number;
+  gearItem?: GearItem;
+};
+
 type CustomerOrder = {
   id: string;
-  gearTitle: string;
   startDate: string;
   endDate: string;
-  totalAmount: number;
+  totalAmount: string | number;
   status: RentalStatus;
+  items?: RentalItem[];
+
+  // Optional fallback if your API already sends this
+  gearTitle?: string;
+};
+
+type RentalApiResponse = {
+  success?: boolean;
+  message?: string;
+  data?: CustomerOrder[];
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 };
 
 type PaymentMethod = "stripe" | "sslcommerz" | null;
 
 type PaymentResponse = {
-  payment: {
+  payment?: {
     id: string;
     transactionId: string;
     status: string;
-    amount: number;
+    amount: number | string;
   };
 
-  redirectUrl: string | null;
-
-  sessionId: string;
+  redirectUrl?: string | null;
+  sessionId?: string;
 };
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+function extractOrders(response: unknown): CustomerOrder[] {
+  // ---------------------------------------------
+  // Case 1:
+  // API returns direct array
+  // ---------------------------------------------
+
+  if (Array.isArray(response)) {
+    return response as CustomerOrder[];
+  }
+
+  // ---------------------------------------------
+  // Case 2:
+  // {
+  //   success: true,
+  //   data: [...]
+  // }
+  // ---------------------------------------------
+
+  if (typeof response === "object" && response !== null && "data" in response) {
+    const outer = response as {
+      data?: unknown;
+    };
+
+    if (Array.isArray(outer.data)) {
+      return outer.data as CustomerOrder[];
+    }
+
+    // -------------------------------------------
+    // Case 3:
+    // {
+    //   data: {
+    //     data: [...]
+    //   }
+    // }
+    // -------------------------------------------
+
+    if (
+      typeof outer.data === "object" &&
+      outer.data !== null &&
+      "data" in outer.data
+    ) {
+      const nested = outer.data as {
+        data?: unknown;
+      };
+
+      if (Array.isArray(nested.data)) {
+        return nested.data as CustomerOrder[];
+      }
+    }
+  }
+
+  return [];
+}
+
+function extractPaymentResponse(response: unknown): PaymentResponse {
+  // ---------------------------------------------
+  // Direct response:
+  //
+  // {
+  //   payment: {...},
+  //   redirectUrl: "..."
+  // }
+  // ---------------------------------------------
+
+  if (typeof response === "object" && response !== null) {
+    const value = response as Record<string, unknown>;
+
+    if ("redirectUrl" in value || "payment" in value) {
+      return response as PaymentResponse;
+    }
+
+    // -------------------------------------------
+    // Wrapped:
+    //
+    // {
+    //   success: true,
+    //   data: {
+    //     payment: {...},
+    //     redirectUrl: "..."
+    //   }
+    // }
+    // -------------------------------------------
+
+    if (
+      "data" in value &&
+      typeof value.data === "object" &&
+      value.data !== null
+    ) {
+      return value.data as PaymentResponse;
+    }
+  }
+
+  return {};
+}
+
+function getGearTitle(order: CustomerOrder) {
+  if (order.gearTitle) {
+    return order.gearTitle;
+  }
+
+  const items = order.items ?? [];
+
+  if (items.length === 0) {
+    return "Rental gear";
+  }
+
+  const names = items.map((item) => item.gearItem?.name).filter(Boolean);
+
+  if (names.length === 0) {
+    return "Rental gear";
+  }
+
+  if (names.length === 1) {
+    return names[0] as string;
+  }
+
+  return `${names[0]} + ${names.length - 1} more`;
+}
+
+function getGearImage(order: CustomerOrder) {
+  return order.items?.[0]?.gearItem?.images?.[0] ?? null;
+}
+
+// =====================================================
+// PAYMENT PAGE
+// =====================================================
 
 export default function PayOrderPage({
   params,
@@ -64,23 +229,45 @@ export default function PayOrderPage({
   const [loading, setLoading] = useState(false);
 
   // =====================================================
-  // LOAD RENTAL ORDER
+  // LOAD ORDER
   // =====================================================
 
   useEffect(() => {
     let mounted = true;
 
-    api
-      .get<CustomerOrder[]>("/rentals")
-      .then((orders) => {
+    async function loadOrder() {
+      try {
+        setLoadingOrder(true);
+        setLoadError(false);
+
+        /*
+         * Backend:
+         *
+         * GET /api/rentals
+         *
+         * Expected response:
+         *
+         * {
+         *   success: true,
+         *   data: [...]
+         * }
+         */
+
+        const response = await api.get<unknown>("/rentals");
+
         if (!mounted) return;
+
+        console.log("RENTALS RESPONSE:", response);
+
+        const orders = extractOrders(response);
 
         const foundOrder = orders.find((item) => item.id === id) ?? null;
 
         setOrder(foundOrder);
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!mounted) return;
+
+        console.error("LOAD RENTAL ORDER ERROR:", error);
 
         setLoadError(true);
 
@@ -89,12 +276,16 @@ export default function PayOrderPage({
             ? error.message
             : "Could not load this rental order.",
         );
-      })
-      .finally(() => {
-        if (!mounted) return;
+      } finally {
+        if (mounted) {
+          setLoadingOrder(false);
+        }
+      }
+    }
 
-        setLoadingOrder(false);
-      });
+    if (id) {
+      loadOrder();
+    }
 
     return () => {
       mounted = false;
@@ -119,37 +310,28 @@ export default function PayOrderPage({
     try {
       setLoading(true);
 
-      // -------------------------------------------------
-      // Create payment session on backend
-      // -------------------------------------------------
-
-      const result = await api.post<PaymentResponse>("/payment/create", {
+      const response = await api.post<unknown>("/payments/create", {
         rentalOrderId: order.id,
-
         method: method === "stripe" ? "STRIPE" : "SSLCOMMERZ",
       });
 
-      // -------------------------------------------------
-      // Backend must return redirectUrl
-      // -------------------------------------------------
+      console.log("PAYMENT CREATE RESPONSE:", response);
+
+      const result = extractPaymentResponse(response);
 
       if (!result.redirectUrl) {
-        throw new Error("Payment redirect URL was not returned.");
+        throw new Error("Payment redirect URL was not returned by the server.");
       }
 
       /*
        * IMPORTANT:
        *
-       * Do NOT redirect directly to:
+       * Do not redirect manually to:
        *
        * /payment/success
        *
-       * The user must first complete payment
-       * on the payment gateway.
-       *
-       * For Stripe this URL will be something like:
-       *
-       * https://checkout.stripe.com/...
+       * The backend should return the
+       * actual Stripe / SSLCommerz gateway URL.
        */
 
       window.location.href = result.redirectUrl;
@@ -169,7 +351,7 @@ export default function PayOrderPage({
   }
 
   // =====================================================
-  // ERROR STATE
+  // ERROR
   // =====================================================
 
   if (loadError) {
@@ -177,7 +359,11 @@ export default function PayOrderPage({
       <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
-            <h2 className="text-lg font-semibold">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger/10">
+              <CreditCard className="h-5 w-5 text-danger" />
+            </div>
+
+            <h2 className="mt-4 text-lg font-semibold">
               Unable to load this rental order
             </h2>
 
@@ -191,27 +377,113 @@ export default function PayOrderPage({
   }
 
   // =====================================================
-  // LOADING STATE
+  // SKELETON
   // =====================================================
 
   if (loadingOrder) {
     return (
-      <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading payment details...
-        </div>
+      <div className="container mx-auto max-w-2xl px-4 py-10">
+        <Card>
+          {/* Header */}
+
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-full" />
+
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-6 w-56" />
+
+                <Skeleton className="h-4 w-full max-w-md" />
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {/* Order summary */}
+
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="flex gap-4">
+                <Skeleton className="h-16 w-16 shrink-0 rounded-md" />
+
+                <div className="flex-1 space-y-3">
+                  <Skeleton className="h-5 w-52" />
+
+                  <Skeleton className="h-4 w-40" />
+                </div>
+
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-7 w-28" />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment methods */}
+
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-40" />
+
+              <div className="flex items-center gap-3 rounded-lg border p-4">
+                <Skeleton className="h-10 w-10 rounded-md" />
+
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+
+                <Skeleton className="h-4 w-4 rounded-full" />
+              </div>
+
+              <div className="flex items-center gap-3 rounded-lg border p-4">
+                <Skeleton className="h-10 w-10 rounded-md" />
+
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-36" />
+                </div>
+
+                <Skeleton className="h-4 w-4 rounded-full" />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Security */}
+
+            <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-4">
+              <Skeleton className="h-5 w-5 rounded-full" />
+
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-28" />
+
+                <Skeleton className="h-3 w-full" />
+
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            </div>
+
+            {/* Button */}
+
+            <Skeleton className="h-11 w-full rounded-md" />
+
+            <Skeleton className="mx-auto h-3 w-56" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   // =====================================================
-  // ORDER NOT FOUND
+  // NOT FOUND
   // =====================================================
 
   if (!order) {
     notFound();
   }
+
+  const gearTitle = getGearTitle(order);
+
+  const gearImage = getGearImage(order);
 
   // =====================================================
   // PAYMENT PAGE
@@ -220,13 +492,13 @@ export default function PayOrderPage({
   return (
     <div className="container mx-auto max-w-2xl px-4 py-10">
       <Card>
-        {/* ================================================
+        {/* =================================================
             HEADER
         ================================================= */}
 
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
               <CreditCard className="h-5 w-5 text-primary" />
             </div>
 
@@ -241,18 +513,36 @@ export default function PayOrderPage({
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* ==============================================
+          {/* =================================================
               ORDER SUMMARY
-          =============================================== */}
+          ================================================= */}
 
           <div className="rounded-lg border bg-muted/30 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">{order.gearTitle}</p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                {/* Gear image */}
 
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {order.startDate} → {order.endDate}
-                </p>
+                <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background">
+                  {gearImage ? (
+                    <img
+                      src={gearImage}
+                      alt={gearTitle}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Package className="h-6 w-6 text-muted-foreground" />
+                  )}
+                </div>
+
+                <div>
+                  <p className="font-medium">{gearTitle}</p>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {order.startDate}
+                    {" → "}
+                    {order.endDate}
+                  </p>
+                </div>
               </div>
 
               <div className="text-left sm:text-right">
@@ -265,9 +555,9 @@ export default function PayOrderPage({
             </div>
           </div>
 
-          {/* ==============================================
+          {/* =================================================
               PAYMENT METHODS
-          =============================================== */}
+          ================================================= */}
 
           <div className="space-y-3">
             <p className="text-sm font-medium">Select payment method</p>
@@ -341,9 +631,9 @@ export default function PayOrderPage({
 
           <Separator />
 
-          {/* ==============================================
-              SECURITY NOTICE
-          =============================================== */}
+          {/* =================================================
+              SECURITY
+          ================================================= */}
 
           <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-4">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
@@ -358,9 +648,9 @@ export default function PayOrderPage({
             </div>
           </div>
 
-          {/* ==============================================
+          {/* =================================================
               PAY BUTTON
-          =============================================== */}
+          ================================================= */}
 
           <Button
             type="button"

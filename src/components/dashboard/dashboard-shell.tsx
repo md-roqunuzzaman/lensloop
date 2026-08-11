@@ -44,7 +44,10 @@ export function DashboardShell({
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 border-r border-border bg-surface md:flex md:flex-col">
-        <Link href="/" className="flex items-center gap-2 border-b border-border px-6 py-5 font-display text-lg font-semibold">
+        <Link
+          href="/"
+          className="flex items-center gap-2 border-b border-border px-6 py-5 font-display text-lg font-semibold"
+        >
           <Aperture className="h-6 w-6 text-primary" strokeWidth={1.75} />
           LensLoop
         </Link>
@@ -58,7 +61,9 @@ export function DashboardShell({
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-surface-muted"
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground/80 hover:bg-surface-muted",
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -79,9 +84,16 @@ export function DashboardShell({
 
       <div className="flex flex-1 flex-col">
         <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 sm:px-6">
-          <p className="font-display text-base font-semibold md:hidden">LensLoop</p>
+          <p className="font-display text-base font-semibold md:hidden">
+            LensLoop
+          </p>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Toggle theme"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
               <Sun className="hidden h-4 w-4 dark:block" />
               <Moon className="block h-4 w-4 dark:hidden" />
             </Button>
@@ -89,25 +101,41 @@ export function DashboardShell({
               <DropdownMenuTrigger asChild>
                 <button className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   <Avatar>
-                    <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? ""} />
-                    <AvatarFallback>{user?.name?.slice(0, 2).toUpperCase() ?? "?"}</AvatarFallback>
+                    <AvatarImage
+                      src={user?.avatarUrl ?? undefined}
+                      alt={user?.name ?? ""}
+                    />
+                    <AvatarFallback>
+                      {user?.name?.slice(0, 2).toUpperCase() ?? "?"}
+                    </AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <div className="px-2 py-1.5 text-sm font-medium">{user?.name}</div>
+                <div className="px-2 py-1.5 text-sm font-medium">
+                  {user?.name}
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href={`/dashboard/${user?.role.toLowerCase()}/profile`}>Profile</Link>
+                  <Link
+                    href={`/dashboard/${user?.role?.toLowerCase()}/profile`}
+                  >
+                    Profile
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="text-danger">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-danger"
+                >
                   <LogOut /> Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 bg-background p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 bg-background p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -42,7 +42,7 @@ export const gearFormSchema = z.object({
     z.object({
       key: z.string().min(1, "Spec name required"),
       value: z.string().min(1, "Spec value required"),
-    })
+    }),
   ),
 });
 
@@ -71,13 +71,12 @@ export const reviewSchema = z.object({
 export type ReviewInput = z.infer<typeof reviewSchema>;
 
 export const profileUpdateSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Enter a valid email address"),
-  avatarUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  avatarUrl: z
+    .union([z.string().url("Must be a valid URL"), z.literal("")])
+    .optional(),
 });
-
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
-
 export const contactSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Enter a valid email address"),
@@ -85,3 +84,23 @@ export const contactSchema = z.object({
 });
 
 export type ContactInput = z.infer<typeof contactSchema>;
+
+export const blogFormSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title must be less than 200 characters"),
+
+  excerpt: z
+    .string()
+    .min(1, "Excerpt is required")
+    .max(500, "Excerpt must be less than 500 characters"),
+
+  content: z.string().min(1, "Content is required"),
+
+  coverImage: z.string().trim().optional().or(z.literal("")),
+
+  category: z.string().min(1, "Category is required"),
+});
+
+export type BlogFormValues = z.infer<typeof blogFormSchema>;

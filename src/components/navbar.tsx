@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Aperture, Menu, X, LayoutDashboard, User, LogOut, Moon, Sun } from "lucide-react";
+import {
+  Aperture,
+  Menu,
+  X,
+  LayoutDashboard,
+  User,
+  LogOut,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -36,7 +45,9 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const dashboardHref = user ? `/dashboard/${user.role.toLowerCase()}` : "/login";
+  const role = user?.role?.toString().toLowerCase();
+
+  const dashboardHref = role ? `/dashboard/${role}` : "/login";
   const links = user ? [...loggedOutLinks, ...loggedInExtra] : loggedOutLinks;
 
   function handleLogout() {
@@ -47,7 +58,10 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2 font-display text-lg font-semibold">
+        <Link
+          href="/"
+          className="flex items-center gap-2 font-display text-lg font-semibold"
+        >
           <Aperture className="h-6 w-6 text-primary" strokeWidth={1.75} />
           LensLoop
         </Link>
@@ -90,8 +104,15 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <button className="ml-1 rounded-full ring-offset-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   <Avatar>
-                    <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
-                    <AvatarFallback>{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarImage
+                      src={user.avatarUrl ?? undefined}
+                      alt={user.name}
+                    />
+                    <AvatarFallback>
+                      {(user?.name ?? user?.email ?? "U")
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
@@ -99,7 +120,9 @@ export function Navbar() {
                 <DropdownMenuLabel className="exif-chip normal-case">
                   {user.role}
                 </DropdownMenuLabel>
-                <div className="px-2 py-1.5 text-sm font-medium">{user.name}</div>
+                <div className="px-2 py-1.5 text-sm font-medium">
+                  {user.name}
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href={dashboardHref}>
@@ -112,7 +135,10 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-danger">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-danger"
+                >
                   <LogOut /> Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -153,10 +179,17 @@ export function Navbar() {
             ))}
             {user ? (
               <>
-                <Link href={dashboardHref} onClick={() => setOpen(false)} className="rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-muted">
+                <Link
+                  href={dashboardHref}
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-muted"
+                >
                   Dashboard
                 </Link>
-                <button onClick={handleLogout} className="rounded-md px-3 py-2 text-left text-sm font-medium text-danger hover:bg-surface-muted">
+                <button
+                  onClick={handleLogout}
+                  className="rounded-md px-3 py-2 text-left text-sm font-medium text-danger hover:bg-surface-muted"
+                >
                   Log out
                 </button>
               </>

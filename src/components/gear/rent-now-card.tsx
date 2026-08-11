@@ -25,7 +25,9 @@ export function RentNowCard({ gear }: { gear: GearItem }) {
 
   const days = useMemo(() => {
     if (!startDate || !endDate) return 0;
-    const diff = (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000;
+    const diff =
+      (new Date(endDate).getTime() - new Date(startDate).getTime()) /
+      86_400_000;
     return diff > 0 ? Math.ceil(diff) : 0;
   }, [startDate, endDate]);
 
@@ -38,22 +40,43 @@ export function RentNowCard({ gear }: { gear: GearItem }) {
       router.push(`/login?next=/gear/${gear.slug}`);
       return;
     }
-    setSubmitting(true);
-    try {
-      await api.post("/rentals", {
-        gearId: gear.id,
-        quantity: 1,
-        startDate,
-        endDate,
-      });
-    } catch (error) {
-      setSubmitting(false);
-      toast.error(error instanceof ApiRequestError ? error.message : "Could not place the rental request.");
+
+    if (!startDate || !endDate || days <= 0) {
+      toast.error("Please select valid rental dates.");
       return;
     }
-    setSubmitting(false);
-    toast.success(`Rental request placed for ${days} day${days > 1 ? "s" : ""} — awaiting provider confirmation.`);
-    router.push("/dashboard/customer");
+
+    setSubmitting(true);
+
+    try {
+      await api.post("/rentals", {
+        startDate: new Date(`${startDate}T10:00:00`).toISOString(),
+        endDate: new Date(`${endDate}T10:00:00`).toISOString(),
+        notes: "",
+        items: [
+          {
+            gearItemId: gear.id,
+            quantity: 1,
+          },
+        ],
+      });
+
+      toast.success(
+        `Rental request placed for ${days} day${days > 1 ? "s" : ""} — awaiting provider confirmation.`,
+      );
+
+      router.push("/dashboard/customer");
+    } catch (error) {
+      console.error("Rental creation error:", error);
+
+      toast.error(
+        error instanceof ApiRequestError
+          ? error.message
+          : "Could not place the rental request.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -61,11 +84,15 @@ export function RentNowCard({ gear }: { gear: GearItem }) {
       <CardContent className="p-5">
         <div className="flex items-baseline justify-between">
           <div>
-            <span className="font-display text-2xl font-semibold">${gear.pricePerDay}</span>
+            <span className="font-display text-2xl font-semibold">
+              ${gear.pricePerDay}
+            </span>
             <span className="text-sm text-muted"> /day</span>
           </div>
           {gear.availability !== "AVAILABLE" && (
-            <span className="text-xs font-medium text-danger">Currently unavailable</span>
+            <span className="text-xs font-medium text-danger">
+              Currently unavailable
+            </span>
           )}
         </div>
 
@@ -103,7 +130,9 @@ export function RentNowCard({ gear }: { gear: GearItem }) {
         {days > 0 && (
           <div className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
             <div className="flex justify-between text-muted">
-              <span>${gear.pricePerDay} × {days} day{days > 1 ? "s" : ""}</span>
+              <span>
+                ${gear.pricePerDay} × {days} day{days > 1 ? "s" : ""}
+              </span>
               <span>${total}</span>
             </div>
             <div className="flex justify-between font-medium">
@@ -113,10 +142,18 @@ export function RentNowCard({ gear }: { gear: GearItem }) {
           </div>
         )}
 
-        <Button className="mt-4 w-full" size="lg" disabled={disabled} loading={submitting} onClick={handleRent}>
+        <Button
+          className="mt-4 w-full"
+          size="lg"
+          disabled={disabled}
+          loading={submitting}
+          onClick={handleRent}
+        >
           {gear.availability === "AVAILABLE" ? "Rent now" : "Unavailable"}
         </Button>
-        <p className="mt-2 text-center text-xs text-muted">You won&apos;t be charged until the provider confirms.</p>
+        <p className="mt-2 text-center text-xs text-muted">
+          You won&apos;t be charged until the provider confirms.
+        </p>
       </CardContent>
     </Card>
   );
