@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { api } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import type { LoginInput, RegisterInput } from "@/lib/validations";
 import type { User } from "@/types";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (input: LoginInput) => Promise<User>;
   register: (input: RegisterInput) => Promise<void>;
+  googleLogin: (idToken: string) => Promise<User>;
   logout: () => Promise<void>;
 }
 
@@ -42,15 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // =====================================================
+  // HYDRATE CURRENT USER
+  // =====================================================
+
   async function hydrate() {
     try {
       const response = await api.get<MeResponse>("/auth/me");
 
-      // Backend response:
-      // { success, message, data: user }
       setUser(response.data);
     } catch (error) {
-      // 401 এখানে normal হতে পারে যখন user logged out.
       setUser(null);
 
       if (process.env.NODE_ENV === "development") {
@@ -61,23 +63,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // =====================================================
+  // INITIAL AUTH CHECK
+  // =====================================================
+
   useEffect(() => {
     hydrate();
   }, []);
+
+  // =====================================================
+  // NORMAL LOGIN
+  // =====================================================
 
   async function login(input: LoginInput): Promise<User> {
     const response = await api.post<AuthResponse>("/auth/login", input, {
       auth: false,
     });
-
-    // Backend response:
-    // {
-    //   success: true,
-    //   message: "Login successful",
-    //   data: {
-    //     user: {...}
-    //   }
-    // }
 
     const loggedInUser = response.data.user;
 
@@ -85,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return loggedInUser;
   }
+
+  // =====================================================
+  // REGISTER
+  // =====================================================
 
   async function register(input: RegisterInput) {
     const { confirmPassword, ...rest } = input;
@@ -98,6 +103,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.data.user);
   }
 
+  // =====================================================
+  // GOOGLE LOGIN
+  // =====================================================
+
+  async function googleLogin(idToken: string): Promise<User> {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/google`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          idToken,
+        }),
+      },
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        data.message || "Google login failed",
+        response.status,
+      );
+    }
+
+    const googleUser = data.data.user as User;
+
+    // IMPORTANT:
+    // Update AuthProvider state immediately
+    setUser(googleUser);
+
+    return googleUser;
+  }
+
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
   async function logout() {
     try {
       await api.post("/auth/logout");
@@ -108,12 +154,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout failed:", error);
 
-      // Even if API logout fails, clear local user state
+      // Clear local state even if backend logout fails
       setUser(null);
 
       toast.error("Logout failed. Please try again.");
     }
   }
+
+  // =====================================================
+  // CONTEXT
+  // =====================================================
+
   return (
     <AuthContext.Provider
       value={{
@@ -121,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login,
         register,
+        googleLogin,
         logout,
       }}
     >
@@ -128,6 +180,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+// =====================================================
+// HOOK
+// =====================================================
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
