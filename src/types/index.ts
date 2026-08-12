@@ -8,7 +8,11 @@ export interface User {
   email: string;
   role: Role;
   status: UserStatus;
+
+  // both supported
   avatarUrl?: string | null;
+  avatar?: string | null;
+
   createdAt: string;
 }
 
@@ -17,6 +21,9 @@ export interface Category {
   name: string;
   slug: string;
   icon?: string | null;
+
+  description?: string | null;
+  createdAt?: string;
 }
 
 export type GearAvailability = "AVAILABLE" | "RENTED" | "MAINTENANCE";

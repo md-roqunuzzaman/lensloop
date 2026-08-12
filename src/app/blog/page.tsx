@@ -30,7 +30,9 @@ const API_BASE_URL =
 async function getBlogPosts(): Promise<BlogPost[]> {
   try {
     const response = await fetch(`${API_BASE_URL}/blog`, {
-      cache: "no-store",
+      next: {
+        revalidate: 60,
+      },
     });
 
     if (!response.ok) {

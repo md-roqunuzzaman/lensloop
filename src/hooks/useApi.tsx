@@ -22,15 +22,17 @@ export function useApi<T>(path: string | null) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (!path) {
+    if (path === null) {
+      setLoading(false);
       return;
     }
 
+    const currentPath = path;
     let cancelled = false;
 
     async function load() {
       try {
-        const result = await api.get<T>(path);
+        const result = await api.get<T>(currentPath);
 
         if (!cancelled) {
           setData(result);
@@ -79,15 +81,17 @@ export function useApiList<T>(path: string | null) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (!path) {
+    if (path === null) {
+      setLoading(false);
       return;
     }
 
+    const currentPath = path;
     let cancelled = false;
 
     async function load() {
       try {
-        const result = await api.get<ListResponse<T>>(path);
+        const result = await api.get<ListResponse<T>>(currentPath);
 
         if (!cancelled) {
           setData(result.data);

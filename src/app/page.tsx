@@ -77,7 +77,9 @@ const API_BASE_URL =
 async function fetchApi<T>(endpoint: string): Promise<ApiResponse<T> | null> {
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      cache: "no-store",
+      next: {
+        revalidate: 60,
+      },
     });
 
     if (!response.ok) {

@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/select";
 
 import { gearFormSchema, type GearFormInput } from "@/lib/validations";
-
 import { api, ApiRequestError } from "@/lib/api";
 
 import type { GearItem, Category } from "@/types";
@@ -34,36 +33,30 @@ interface GearFormProps {
 function GearFormSkeleton() {
   return (
     <div className="space-y-6">
-      {/* Basic information */}
       <Card>
         <CardContent className="space-y-5 p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Title */}
             <div className="space-y-2">
               <div className="h-4 w-16 animate-pulse rounded bg-surface-muted" />
               <div className="h-10 w-full animate-pulse rounded-md bg-surface-muted" />
             </div>
 
-            {/* Brand */}
             <div className="space-y-2">
               <div className="h-4 w-16 animate-pulse rounded bg-surface-muted" />
               <div className="h-10 w-full animate-pulse rounded-md bg-surface-muted" />
             </div>
           </div>
 
-          {/* Category */}
           <div className="space-y-2">
             <div className="h-4 w-20 animate-pulse rounded bg-surface-muted" />
             <div className="h-10 w-full animate-pulse rounded-md bg-surface-muted" />
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <div className="h-4 w-24 animate-pulse rounded bg-surface-muted" />
             <div className="h-24 w-full animate-pulse rounded-md bg-surface-muted" />
           </div>
 
-          {/* Price + Stock */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <div className="h-4 w-28 animate-pulse rounded bg-surface-muted" />
@@ -78,12 +71,10 @@ function GearFormSkeleton() {
         </CardContent>
       </Card>
 
-      {/* Images */}
       <Card>
         <CardContent className="space-y-3 p-5">
           <div className="flex items-center justify-between">
             <div className="h-4 w-20 animate-pulse rounded bg-surface-muted" />
-
             <div className="h-9 w-24 animate-pulse rounded-md bg-surface-muted" />
           </div>
 
@@ -91,12 +82,10 @@ function GearFormSkeleton() {
         </CardContent>
       </Card>
 
-      {/* Specifications */}
       <Card>
         <CardContent className="space-y-3 p-5">
           <div className="flex items-center justify-between">
             <div className="h-4 w-28 animate-pulse rounded bg-surface-muted" />
-
             <div className="h-9 w-24 animate-pulse rounded-md bg-surface-muted" />
           </div>
 
@@ -108,7 +97,6 @@ function GearFormSkeleton() {
         </CardContent>
       </Card>
 
-      {/* Actions */}
       <div className="flex justify-end gap-2">
         <div className="h-10 w-20 animate-pulse rounded-md bg-surface-muted" />
         <div className="h-10 w-28 animate-pulse rounded-md bg-surface-muted" />
@@ -204,7 +192,7 @@ export function GearForm({ initialGear }: GearFormProps) {
 
         if (!mounted) return;
 
-        const categoryData = Array.isArray(response.data) ? response.data : [];
+        const categoryData = Array.isArray(response) ? response : [];
 
         setCategories(categoryData);
       } catch (error) {
@@ -325,10 +313,12 @@ export function GearForm({ initialGear }: GearFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       {/* Basic information */}
+
       <Card>
         <CardContent className="space-y-4 p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Title */}
+
             <div className="space-y-1.5">
               <Label htmlFor="title">Title</Label>
 
@@ -344,6 +334,7 @@ export function GearForm({ initialGear }: GearFormProps) {
             </div>
 
             {/* Brand */}
+
             <div className="space-y-1.5">
               <Label htmlFor="brand">Brand</Label>
 
@@ -356,6 +347,7 @@ export function GearForm({ initialGear }: GearFormProps) {
           </div>
 
           {/* Category */}
+
           <div className="space-y-1.5">
             <Label htmlFor="categoryId">Category</Label>
 
@@ -391,6 +383,7 @@ export function GearForm({ initialGear }: GearFormProps) {
           </div>
 
           {/* Description */}
+
           <div className="space-y-1.5">
             <Label htmlFor="description">Description</Label>
 
@@ -409,6 +402,7 @@ export function GearForm({ initialGear }: GearFormProps) {
           </div>
 
           {/* Price + Stock */}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="pricePerDay">Price per day ($)</Label>
@@ -452,6 +446,7 @@ export function GearForm({ initialGear }: GearFormProps) {
       </Card>
 
       {/* Images */}
+
       <Card>
         <CardContent className="space-y-3 p-5">
           <div className="flex items-center justify-between">
@@ -498,6 +493,7 @@ export function GearForm({ initialGear }: GearFormProps) {
       </Card>
 
       {/* Specifications */}
+
       <Card>
         <CardContent className="space-y-3 p-5">
           <div className="flex items-center justify-between">
@@ -547,6 +543,7 @@ export function GearForm({ initialGear }: GearFormProps) {
       </Card>
 
       {/* Actions */}
+
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel
