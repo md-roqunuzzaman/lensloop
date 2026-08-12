@@ -50,7 +50,7 @@ type CustomerOrder = {
   status: RentalStatus;
   items?: RentalItem[];
 
-  // Optional fallback if your API already sends this
+  // Optional fallback
   gearTitle?: string;
 };
 
@@ -66,7 +66,7 @@ type RentalApiResponse = {
   };
 };
 
-type PaymentMethod = "stripe" | "sslcommerz" | null;
+type PaymentMethod = "stripe" | null;
 
 type PaymentResponse = {
   payment?: {
@@ -85,22 +85,16 @@ type PaymentResponse = {
 // =====================================================
 
 function extractOrders(response: unknown): CustomerOrder[] {
-  // ---------------------------------------------
-  // Case 1:
-  // API returns direct array
-  // ---------------------------------------------
-
+  // Case 1: Direct array
   if (Array.isArray(response)) {
     return response as CustomerOrder[];
   }
 
-  // ---------------------------------------------
   // Case 2:
   // {
   //   success: true,
   //   data: [...]
   // }
-  // ---------------------------------------------
 
   if (typeof response === "object" && response !== null && "data" in response) {
     const outer = response as {
@@ -111,14 +105,12 @@ function extractOrders(response: unknown): CustomerOrder[] {
       return outer.data as CustomerOrder[];
     }
 
-    // -------------------------------------------
     // Case 3:
     // {
     //   data: {
     //     data: [...]
     //   }
     // }
-    // -------------------------------------------
 
     if (
       typeof outer.data === "object" &&
@@ -139,14 +131,11 @@ function extractOrders(response: unknown): CustomerOrder[] {
 }
 
 function extractPaymentResponse(response: unknown): PaymentResponse {
-  // ---------------------------------------------
   // Direct response:
-  //
   // {
   //   payment: {...},
   //   redirectUrl: "..."
   // }
-  // ---------------------------------------------
 
   if (typeof response === "object" && response !== null) {
     const value = response as Record<string, unknown>;
@@ -155,9 +144,7 @@ function extractPaymentResponse(response: unknown): PaymentResponse {
       return response as PaymentResponse;
     }
 
-    // -------------------------------------------
-    // Wrapped:
-    //
+    // Wrapped response:
     // {
     //   success: true,
     //   data: {
@@ -165,7 +152,6 @@ function extractPaymentResponse(response: unknown): PaymentResponse {
     //     redirectUrl: "..."
     //   }
     // }
-    // -------------------------------------------
 
     if (
       "data" in value &&
@@ -244,13 +230,6 @@ export default function PayOrderPage({
          * Backend:
          *
          * GET /api/rentals
-         *
-         * Expected response:
-         *
-         * {
-         *   success: true,
-         *   data: [...]
-         * }
          */
 
         const response = await api.get<unknown>("/rentals");
@@ -293,7 +272,7 @@ export default function PayOrderPage({
   }, [id]);
 
   // =====================================================
-  // START PAYMENT
+  // START STRIPE PAYMENT
   // =====================================================
 
   async function pay() {
@@ -303,7 +282,6 @@ export default function PayOrderPage({
 
     if (!method) {
       toast.error("Please select a payment method.");
-
       return;
     }
 
@@ -312,7 +290,7 @@ export default function PayOrderPage({
 
       const response = await api.post<unknown>("/payments/create", {
         rentalOrderId: order.id,
-        method: method === "stripe" ? "STRIPE" : "SSLCOMMERZ",
+        method: "STRIPE",
       });
 
       console.log("PAYMENT CREATE RESPONSE:", response);
@@ -320,20 +298,14 @@ export default function PayOrderPage({
       const result = extractPaymentResponse(response);
 
       if (!result.redirectUrl) {
-        throw new Error("Payment redirect URL was not returned by the server.");
+        throw new Error(
+          "Stripe payment redirect URL was not returned by the server.",
+        );
       }
 
       /*
-       * IMPORTANT:
-       *
-       * Do not redirect manually to:
-       *
-       * /payment/success
-       *
-       * The backend should return the
-       * actual Stripe / SSLCommerz gateway URL.
+       * Redirect to actual Stripe Checkout.
        */
-
       window.location.href = result.redirectUrl;
     } catch (error) {
       console.error("Payment creation error:", error);
@@ -343,7 +315,7 @@ export default function PayOrderPage({
           ? error.message
           : error instanceof Error
             ? error.message
-            : "Failed to create payment session.",
+            : "Failed to create Stripe payment session.",
       );
     } finally {
       setLoading(false);
@@ -377,15 +349,13 @@ export default function PayOrderPage({
   }
 
   // =====================================================
-  // SKELETON
+  // LOADING SKELETON
   // =====================================================
 
   if (loadingOrder) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-10">
         <Card>
-          {/* Header */}
-
           <CardHeader>
             <div className="flex items-center gap-3">
               <Skeleton className="h-10 w-10 rounded-full" />
@@ -399,7 +369,7 @@ export default function PayOrderPage({
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* Order summary */}
+            {/* Order Summary */}
 
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="flex gap-4">
@@ -413,32 +383,39 @@ export default function PayOrderPage({
 
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-20" />
+
                   <Skeleton className="h-7 w-28" />
                 </div>
               </div>
             </div>
 
-            {/* Payment methods */}
+            {/* Payment Method */}
 
             <div className="space-y-3">
               <Skeleton className="h-4 w-40" />
+
+              {/* Stripe */}
 
               <div className="flex items-center gap-3 rounded-lg border p-4">
                 <Skeleton className="h-10 w-10 rounded-md" />
 
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-5 w-32" />
+
                   <Skeleton className="h-4 w-40" />
                 </div>
 
                 <Skeleton className="h-4 w-4 rounded-full" />
               </div>
 
-              <div className="flex items-center gap-3 rounded-lg border p-4">
+              {/* SSLCommerz */}
+
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-4">
                 <Skeleton className="h-10 w-10 rounded-md" />
 
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-5 w-40" />
+
                   <Skeleton className="h-4 w-36" />
                 </div>
 
@@ -520,7 +497,7 @@ export default function PayOrderPage({
           <div className="rounded-lg border bg-muted/30 p-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                {/* Gear image */}
+                {/* Gear Image */}
 
                 <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background">
                   {gearImage ? (
@@ -575,13 +552,19 @@ export default function PayOrderPage({
               }`}
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-background">
-                <CreditCard className="h-5 w-5" />
+                <CreditCard className="h-5 w-5 text-primary" />
               </div>
 
               <div className="flex-1">
-                <p className="font-medium">Pay with Stripe</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">Pay with Stripe</p>
 
-                <p className="text-sm text-muted-foreground">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    Available
+                  </span>
+                </div>
+
+                <p className="mt-1 text-sm text-muted-foreground">
                   International cards
                 </p>
               </div>
@@ -595,38 +578,31 @@ export default function PayOrderPage({
               />
             </button>
 
-            {/* SSLCommerz */}
+            {/* SSLCommerz - Coming Soon */}
 
-            <button
-              type="button"
-              onClick={() => setMethod("sslcommerz")}
-              disabled={loading}
-              className={`flex w-full items-center gap-3 rounded-lg border p-4 text-left transition-colors ${
-                method === "sslcommerz"
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:bg-muted/50"
-              }`}
-            >
+            <div className="flex w-full cursor-not-allowed items-center gap-3 rounded-lg border border-border bg-muted/30 p-4 opacity-70">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-background">
-                <CreditCard className="h-5 w-5" />
+                <CreditCard className="h-5 w-5 text-muted-foreground" />
               </div>
 
               <div className="flex-1">
-                <p className="font-medium">Pay with SSLCommerz</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-muted-foreground">
+                    Pay with SSLCommerz
+                  </p>
 
-                <p className="text-sm text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    Coming Soon
+                  </span>
+                </div>
+
+                <p className="mt-1 text-sm text-muted-foreground">
                   bKash, Nagad, cards
                 </p>
               </div>
 
-              <div
-                className={`h-4 w-4 rounded-full border-2 ${
-                  method === "sslcommerz"
-                    ? "border-primary bg-primary"
-                    : "border-muted-foreground"
-                }`}
-              />
-            </button>
+              <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/40" />
+            </div>
           </div>
 
           <Separator />
@@ -642,8 +618,8 @@ export default function PayOrderPage({
               <p className="text-sm font-medium">Secure payment</p>
 
               <p className="mt-1 text-xs text-muted-foreground">
-                Your payment is processed securely through the selected payment
-                gateway. We do not store your card details.
+                Your payment is processed securely through Stripe. We do not
+                store your card details.
               </p>
             </div>
           </div>
@@ -662,7 +638,7 @@ export default function PayOrderPage({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating payment session...
+                Redirecting to Stripe...
               </>
             ) : (
               <>Pay ${Number(order.totalAmount).toFixed(2)}</>
@@ -671,7 +647,7 @@ export default function PayOrderPage({
 
           {!method && (
             <p className="text-center text-xs text-muted-foreground">
-              Please select a payment method to continue.
+              Please select Stripe to continue.
             </p>
           )}
         </CardContent>

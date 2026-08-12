@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Navbar } from "@/components/navbar";
@@ -70,65 +71,114 @@ export default async function BlogPostPage({
   const date = post.publishedAt ?? post.createdAt;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
 
       <main className="flex-1">
-        <article className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-          {/* Category */}
-          {post.category && (
-            <p className="text-xs font-medium uppercase tracking-wider text-primary">
-              {post.category}
-            </p>
-          )}
+        <article className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+          {/* Back to Blog */}
+          <Link
+            href="/blog"
+            className="mb-10 inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-primary"
+          >
+            <span className="text-base">←</span>
+            Back to Blog
+          </Link>
 
-          {/* Date */}
-          {date && (
-            <p className="mt-2 text-xs uppercase tracking-wide text-muted">
-              {new Date(date).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
-          )}
-
-          {/* Title */}
-          <h1 className="mt-3 font-display text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
-            {post.title}
-          </h1>
-
-          {/* Excerpt */}
-          {post.excerpt && (
-            <p className="mt-5 text-lg leading-relaxed text-muted">
-              {post.excerpt}
-            </p>
-          )}
-
-          {/* Author */}
-          {post.author?.name && (
-            <p className="mt-5 text-sm text-muted">
-              By{" "}
-              <span className="font-medium text-foreground">
-                {post.author.name}
+          {/* Header */}
+          <header className="mx-auto max-w-3xl text-center">
+            {/* Category */}
+            {post.category && (
+              <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+                {post.category}
               </span>
-            </p>
-          )}
+            )}
+
+            {/* Title */}
+            <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+              {post.title}
+            </h1>
+
+            {/* Excerpt */}
+            {post.excerpt && (
+              <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted sm:text-lg sm:leading-8">
+                {post.excerpt}
+              </p>
+            )}
+
+            {/* Meta */}
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted">
+              {post.author?.name && (
+                <>
+                  <span>
+                    By{" "}
+                    <span className="font-medium text-foreground">
+                      {post.author.name}
+                    </span>
+                  </span>
+
+                  {date && (
+                    <span className="h-1 w-1 rounded-full bg-muted/50" />
+                  )}
+                </>
+              )}
+
+              {date && (
+                <time dateTime={date}>
+                  {new Date(date).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </time>
+              )}
+            </div>
+          </header>
 
           {/* Cover Image */}
           {post.coverImage && (
-            <div className="mt-10 overflow-hidden rounded-xl border border-border">
+            <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-border bg-surface shadow-sm sm:mt-14">
               <img
                 src={post.coverImage}
                 alt={post.title}
-                className="h-auto w-full object-cover"
+                className="h-auto max-h-[560px] w-full object-cover"
               />
             </div>
           )}
 
           {/* Content */}
-          <div className="mt-10 whitespace-pre-wrap text-sm leading-8 text-foreground/90 sm:text-base">
-            {post.content || "This article does not have any content yet."}
+          <div className="mx-auto mt-12 max-w-3xl sm:mt-16">
+            {post.content ? (
+              <div
+                className="
+                  whitespace-pre-wrap
+                  text-[15px]
+                  leading-8
+                  text-foreground/90
+                  sm:text-base
+                  sm:leading-8
+                "
+              >
+                {post.content}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-surface p-8 text-center">
+                <p className="text-sm text-muted">
+                  This article does not have any content yet.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Divider */}
+          <div className="mx-auto mt-16 max-w-3xl border-t border-border pt-8 sm:mt-20">
+            <Link
+              href="/blog"
+              className="inline-flex items-center gap-2 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+            >
+              <span>←</span>
+              Back to all articles
+            </Link>
           </div>
         </article>
       </main>
