@@ -18,9 +18,10 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LensLoop — Rent Camera & Event Gear Instantly",
+  title: "LensLoop — Your Outdoor Equipment, Ready to Explore",
+
   description:
-    "Rent professional cameras, lenses, lighting and event gear from trusted local providers. Book by the day, pick up, shoot, return.",
+    "Discover and Book quality outdoor equipment from trusted local providers. Book easily, pick up, explore, and return hassle-free.",
 };
 
 export default function RootLayout({
